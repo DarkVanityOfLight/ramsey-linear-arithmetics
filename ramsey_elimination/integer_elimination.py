@@ -72,8 +72,8 @@ def eliminate_mod_eq_atom_int(eq: ExtendedFNode, vars1, vars2, x, x0):
     rx0_map = apply_subst(r_coeffs, {vars2[i]: x0[i] for i in range(len(vars2))})
 
     # Reconstruct expressions
-    lx, lx0 = reconstruct_from_coeff_map(lx_map, 0, INT), reconstruct_from_coeff_map(lx0_map, 0, INT)
-    rx, rx0 = reconstruct_from_coeff_map(rx_map, 0, INT), reconstruct_from_coeff_map(rx0_map, const, INT)
+    lx, lx0 = reconstruct_from_coeff_map(lx_map, 0, typ.INT), reconstruct_from_coeff_map(lx0_map, 0, typ.INT)
+    rx, rx0 = reconstruct_from_coeff_map(rx_map, 0, typ.INT), reconstruct_from_coeff_map(rx0_map, const, typ.INT)
 
     def negate_if(expr): return Not(expr) if is_negated else expr
 
@@ -95,8 +95,8 @@ def eliminate_eq_atom_int(eq: ExtendedFNode, vars1, vars2, x, x0):
     rx_map  = apply_subst({v: c for v, c in r_coeffs.items() if v in vars2}, {vars2[i]: x[i] for i in range(len(vars2))})
     rx0_map = apply_subst(r_coeffs, {vars2[i]: x0[i] for i in range(len(vars2))})
 
-    left_x, right_x = reconstruct_from_coeff_map(lx_map, 0, INT), reconstruct_from_coeff_map(rx_map, 0, INT)
-    left_x0, right_x0 = reconstruct_from_coeff_map(lx0_map, 0, INT), reconstruct_from_coeff_map(rx0_map, const, INT)
+    left_x, right_x = reconstruct_from_coeff_map(lx_map, 0, typ.INT), reconstruct_from_coeff_map(rx_map, 0, typ.INT)
+    left_x0, right_x0 = reconstruct_from_coeff_map(lx0_map, 0, typ.INT), reconstruct_from_coeff_map(rx0_map, const, typ.INT)
 
     return And(
         Equals(left_x, Int(0)),
