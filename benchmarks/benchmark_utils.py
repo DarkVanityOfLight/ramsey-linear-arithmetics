@@ -30,6 +30,7 @@ from ramsey_extensions.fnode import ExtendedFNode
 
 from ramsey_elimination.real_elimination import full_ramsey_elimination_real
 from ramsey_elimination.integer_elimination import full_ramsey_elimination_int
+from ramsey_elimination.alternative_mixed_elimination import full_ramsey_elimination_mixed
 from ramsey_elimination.formula_utils import is_atom
 
 # --- Configuration ---
@@ -184,6 +185,19 @@ def get_builtin_configs(dimension: int) -> Dict[str, Dict[str, Any]]:
                 'benchmark_bounding_box_int': [(dimension,)],
                 'benchmark_linear_average_eq_int': [(dimension,)],
             }
+        },
+        "alternative_mixed_benchmarks": {
+            'elimination_func': full_ramsey_elimination_mixed,
+            'args': {
+                'benchmark_geometric_divergence_convergence': [(dimension, dimension)],
+                'benchmark_bounded_int_jump': [(dimension, dimension, 10)],
+                'benchmark_independent_growth': [(dimension, dimension)],
+                'benchmark_oscillating_int_steady_real': [(dimension, dimension)],
+                'benchmark_shrinking_interval': [(dimension, dimension)],
+                'benchmark_int_grows_faster_than_real': [(dimension, dimension)],
+                'benchmark_lia_core_unsat': [(dimension, dimension, 5)],
+                'benchmark_cauchy_real_divergent_int': [(dimension, dimension)],
+            }
         }
     }
 
@@ -295,6 +309,7 @@ def run_single_benchmark(
         
         if config.verbose:
             print(f"    Formula generated in {gen_timer.interval*1000:.2f}ms", file=sys.stderr)
+
         
         # Run elimination
         with Timer() as elim_timer, SuspendTypeChecking():
@@ -513,7 +528,6 @@ def run_benchmarks(module_name: str, config: BenchmarkConfig, benchmark_names: L
     
     for name, func in bench_funcs:
         args_list = arg_map.get(name, [()])
-        
         for args in args_list:
             current += 1
             if not isinstance(args, tuple):
