@@ -177,35 +177,54 @@ def eliminate_bridge_atom(*,v1_dc, v2_dc, v1_a, v1_dinf, w2_a, w2_dinf, v1_a0, w
 
     return And(dc_conditions, step_conditions, start_conditions)
 
-def mixed_elimination(phi: ExtendedFNode):
+def eliminate_ramsey_mixed(phi: ExtendedFNode):
+    """
+    Eliminate a mixed LIA/LRA Ramsey quantifier.
+    Assumes `phi` is a Ramsey quantifier, where the subformula
+    is free of existential quantifiers and in the mixed input format.
+    """
     assert phi.is_ramsey()
 
     vars1, vars2 = phi.quantifier_vars()
-    phi_p = make_mixed_input_format(phi.arg(0))
 
     new_vars = []
+    bridge_pairs = []
     def eliminator(atom: ExtendedFNode):
         if len({v.get_type() for v in atom.get_free_variables()}) > 1:
             if atom.is_equals():
                 eq_result: EqualityDecomposition = decompose_equality(atom)
                 new_vars.extend((eq_result.real_bridge_var, eq_result.int_bridge_var))
+                bridge_pairs.append((eq_result.int_bridge_var, eq_result.real_bridge_var))
                 return And(eq_result.pure_atoms, eq_result.bridge_atom)
             elif atom.is_lt():
                 ineq_result: StrictInequalityDecomposition = decompose_inequality(atom)
                 new_vars.extend((ineq_result.real_bridge_var, ineq_result.int_bridge_var, ineq_result.real_dummy))
+                bridge_pairs.append((ineq_result.int_bridge_var, ineq_result.real_bridge_var))
                 return And(ineq_result.pure_atoms, ineq_result.bridge)
             else:
                 raise Exception(f"Unreachable unknown atom type in mixed elimination {atom}")
         else:
             return atom
 
-    phi_pp = map_atoms(phi_p, eliminator)
+    phi_pp = map_atoms(phi.arg(0), eliminator)
 
     phi_ppp, mapping = eliminate_existential_quantifier(Ramsey(vars1, vars2, Exists(new_vars, phi_pp)))
+
+    reverse_mapping = {}
+    for orig_var, ((v1, v2), (w1, w2)) in mapping.items():
+        val = ((v1, v2), (w1, w2))
+        reverse_mapping[v1] = val
+        reverse_mapping[v2] = val
+        reverse_mapping[w1] = val
+        reverse_mapping[w2] = val
 
     new_vars1, new_vars2 = phi_ppp.quantifier_vars()
     real_vars1, real_vars2 = [var for var in new_vars1 if var.symbol_type() == typ.REAL], [var for var in new_vars2 if var.symbol_type() == typ.REAL]
     int_vars1, int_vars2 = [var for var in new_vars1 if var.symbol_type() == typ.INT], [var for var in new_vars2 if var.symbol_type() == typ.INT]
+
+    # from benchmarks.benchmark_utils import get_atoms, get_variables
+    # print(f"After decomposition Variables: {get_variables(phi_ppp)}")
+    # print(f"After decomposition Atoms: {get_atoms(phi_ppp)}")
 
     eqs, _, ineqs = collect_atoms(phi_ppp)
 
@@ -238,7 +257,7 @@ def mixed_elimination(phi: ExtendedFNode):
 
     qs = fresh_bool_vector("q_{}_%s", len(eqs) + len(ineqs))
     q_mapping = {atom: qs[i] for i, atom in enumerate(eqs + ineqs) }
-    skel = phi_ppp.substitute(q_mapping)
+    skel = phi_ppp.arg(0).substitute(q_mapping)
 
 
     # INT Clique stuff
@@ -258,19 +277,19 @@ def mixed_elimination(phi: ExtendedFNode):
     def pairwise(seq):
         return [(seq[2*i], seq[2*i+1]) for i in range(len(seq)//2)]
 
-    ineq_aux = list(zip(ineqs, pairwise(p), pairwise(omega)))
+    ineq_aux = list(zip(int_ineqs, pairwise(p), pairwise(omega)))
     ineq_iter = iter(ineq_aux)
 
     # --- Eliminate each int atom ---
     phi_delta_p = []
     for atom in int_eqs + int_ineqs:
-        if atom in ineqs:
-            _, p_i, omega_i = next(ineq_iter)
+        if atom in int_ineqs:
+            _, p_i, omega_i = next(filter(lambda item: item[0] == atom, ineq_aux))
             phi_delta_p.append(Implies(q_mapping[atom], eliminate_inequality_atom_int(atom, int_vars1, int_vars2, omega_i, p_i, a, a0)))
         else:
             phi_delta_p.append(Implies(q_mapping[atom], eliminate_eq_atom_int(atom, int_vars1, int_vars2, a, a0)))
 
-    theta_i = int_admissible + a_restriction
+    theta_i = And(int_admissible, a_restriction)
 
     # Real clique elimination
     l, n = len(real_vars1), len(real_ineqs)
@@ -294,7 +313,7 @@ def mixed_elimination(phi: ExtendedFNode):
     non_trivial_dc = Or(NotEquals(dc_i, Real(0)) for dc_i in d_c)
     theta_r = non_trivial_dc
 
-    theta = theta_r + theta_i
+    theta = And(theta_r, theta_i)
     # Statics
     x_r = fresh_real_vector("x_r{}%s", len(real_vars1))
     x_i = fresh_int_vector("x_i{}%s", len(int_vars1))
@@ -307,40 +326,34 @@ def mixed_elimination(phi: ExtendedFNode):
     phi_xi_int_finite = []
     phi_xi_real_finite = []
     phi_Xi = []
-    for bridge in bridge_eqs:
-        phi_xi_int_finite.append(Implies(q_mapping[bridge], eliminate_equality_atom_real(bridge, real_vars1, real_vars2, d, d_c, d_inf)))
-        phi_xi_real_finite.append(Implies(q_mapping[bridge], eliminate_eq_atom_int(bridge, int_vars1, int_vars2, a, a0)))
-        vars = tuple(bridge.get_free_variables())
-        v_i, v_r = (vars[0], vars[1]) if vars[0].symbol_type() == typ.INT else (vars[1], vars[0])
 
+    # Iterate over the stored pairs, which is a robust way to link the components.
+    for int_bridge_var, real_bridge_var in bridge_pairs:
+        # The `mapping` dictionary directly links original vars to their new components.
+        int_mapping = mapping[int_bridge_var]
+        real_mapping = mapping[real_bridge_var]
 
-        int_mapping = mapping[v_i]  # ((v1_i, v2_i), (w1_i, w2_i))
-        real_mapping = mapping[v_r]  # ((v1_r, v2_r), (w1_r, w2_r))
-
-        # Extract individual components from the mapping
         (v1_i, v2_i), (w1_i, w2_i) = int_mapping
         (v1_r, v2_r), (w1_r, w2_r) = real_mapping
 
-        # Find the positions of v1_i and w2_i in the new integer variable lists
+        # Now, find the indices.
         idx_v1_i = int_vars1.index(v1_i)
         idx_w2_i = int_vars2.index(w2_i)
 
-        # Find the positions of v1_r and w2_r in the new real variable lists
         idx_v1_r = real_vars1.index(v1_r)
         idx_w2_r = real_vars2.index(w2_r)
 
-        # Now get the corresponding fresh variables
         phi_Xi.append(eliminate_bridge_atom(
-            v1_dc=d_c[idx_v1_r],      # d_c corresponding to v1_r
-            v2_dc=d_c[idx_w2_r],      # d_c corresponding to w2_r (or v2)
-            v1_a=a[idx_v1_i],         # a corresponding to v1_i
-            v1_dinf=d_inf[idx_v1_r],  # d_inf corresponding to v1_r
-            w2_a=a[idx_w2_i],         # a corresponding to w2_i
-            w2_dinf=d_inf[idx_w2_r],  # d_inf corresponding to w2_r
-            v1_a0=a0[idx_v1_i],       # a0 corresponding to v1_i
-            w2_a0=a0[idx_w2_i],       # a0 corresponding to w2_i
-            v1_d0=d[idx_v1_r],        # d corresponding to v1_r
-            w2_d0=d[idx_w2_r],        # d corresponding to w2_r
+            v1_dc=d_c[idx_v1_r],
+            v2_dc=d_c[idx_w2_r],
+            v1_a=a[idx_v1_i],
+            v1_dinf=d_inf[idx_v1_r],
+            w2_a=a[idx_w2_i],
+            w2_dinf=d_inf[idx_w2_r],
+            v1_a0=a0[idx_v1_i],
+            w2_a0=a0[idx_w2_i],
+            v1_d0=d[idx_v1_r],
+            w2_d0=d[idx_w2_r],
         ))
 
 
@@ -350,8 +363,8 @@ def mixed_elimination(phi: ExtendedFNode):
     selector_restriction = Or(Equals(selector, Int(i)) for i in [0, 1, 2])
 
     phi_pppp = And(skel, theta, selector_restriction,
-        Implies(NotEquals(selector, Int(0)), phi_gamma_p),
-        Implies(NotEquals(selector, Int(1)), phi_delta_p),
+        Implies(NotEquals(selector, Int(0)), And(phi_gamma_p)),
+        Implies(NotEquals(selector, Int(1)), And(phi_delta_p)),
         Implies(Equals(selector, Int(0)), phi_gamma),
         Implies(Equals(selector, Int(1)), phi_delta),
         Implies(Equals(selector, Int(0)), And(phi_xi_real_finite)),
@@ -359,4 +372,18 @@ def mixed_elimination(phi: ExtendedFNode):
         Implies(Equals(selector, Int(2)), And(phi_Xi)),
     )
 
-    return Exists(qs+x_i+x_r+a+a0+omega+p+d+d_c+d_inf+sigma+rho+t_rho+t_sigma, phi_pppp)
+    all_fresh_vars = list(qs) + list(x_i) + list(x_r) + list(a) + list(a0) + list(omega) + list(p) + list(d) + list(d_c) + list(d_inf) + list(sigma) + list(rho) + list(t_rho) + list(t_sigma) + [selector]
+    return Exists(all_fresh_vars, phi_pppp)
+
+def full_ramsey_elimination_mixed(formula: ExtendedFNode) -> ExtendedFNode:
+    """Performs full mixed Ramsey quantifier elimination (with optional existential elimination)."""
+    assert formula.is_ramsey()
+    f = make_mixed_input_format(formula)
+
+    # Handle nested existentials before Ramsey elimination
+    if f.arg(0).is_exists():
+        f, _ = eliminate_existential_quantifier(f)
+
+    return eliminate_ramsey_mixed(f)
+
+

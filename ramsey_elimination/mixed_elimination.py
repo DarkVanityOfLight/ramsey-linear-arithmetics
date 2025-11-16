@@ -754,12 +754,16 @@ def full_mixed_ramsey_elimination(quantified_formula: ExtendedFNode) -> Extended
     # Step 4: Restore original variables and re-quantify
     with_original_vars = restore_original_variables(separated, var_mapping)
     requantified = requantify(with_original_vars, ramsey_vars, ex_vars, free_vars)
+
+    # from benchmarks.benchmark_utils import get_atoms, get_variables
+    # print(f"After decomposition Variables: {get_variables(requantified)}")
+    # print(f"After decomposition Atoms: {get_atoms(requantified)}")
     
     next = requantified
     # Step 5: Eliminate existential quantifiers
     if quantified_formula.arg(0).is_exists():
         next, _ = eliminate_existential_quantifier(requantified)
-        print(f"Existential eliminated: {next.size()}")
+        # print(f"Existential eliminated: {next.size()}")
     
     # Step 6: Apply mixed Ramsey elimination
     return eliminate_ramsey_mixed(next)
