@@ -148,8 +148,10 @@ def eliminate_ramsey_int(qformula: ExtendedFNode) -> ExtendedFNode:
         if atom in ineqs:
             _, p_i, omega_i = next(ineq_iter)
             gamma.append(eliminate_inequality_atom_int(atom, vars1, vars2, omega_i, p_i, x, x0))
-        else:
+        elif atom in eqs:
             gamma.append(eliminate_eq_atom_int(atom, vars1, vars2, x, x0))
+        elif atom in modeqs:
+            gamma.append(eliminate_mod_eq_atom_int(atom, vars1, vars2, x, x0))
 
     # --- Guarded constraints ---
     guarded_gamma = And([Or(Not(qs[i]), gamma[i]) for i in range(len(atoms))])
