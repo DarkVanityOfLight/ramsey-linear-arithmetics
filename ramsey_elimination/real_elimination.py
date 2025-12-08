@@ -87,8 +87,28 @@ def eliminate_inequality_atom_real(
         cons2 = LE(rho_i, Plus(sigma_i, z_and_h_term))
         theta = And(theta, Implies(antecedent1, cons1), Implies(antecedent2, cons2))
     elif ineq.is_le():
-        cons_le = LE(rho_i, Plus(sigma_i, z_and_h_term))
-        theta = And(theta, Implies(Or(antecedent1, antecedent2), cons_le))
+        i1 = Implies(
+            Or(
+                And(
+                    Equals(t_rho_i, Real(-1)),
+                    Or(Equals(t_sigma_i, Real(-1)), Equals(t_sigma_i, Real(0)), Equals(t_sigma_i, Real(1)))
+                ),
+                And(Equals(t_rho_i, Real(0)), Equals(t_sigma_i, Real(1)))
+            ),
+            LT(rho_i, Plus(sigma_i, z_and_h_term))
+        )
+
+        i2 = Implies(
+            Or(
+                Equals(t_rho_i, Real(1)),
+                And(
+                    Equals(t_rho_i, Real(0)),
+                    Or(Equals(t_sigma_i, Real(-1)), Equals(t_sigma_i, Real(0))))
+            ),
+            LE(rho_i, Plus(sigma_i, z_and_h_term))
+        )
+
+        theta = And(theta, i1, i2)
 
     return And(lambdas, xis, deltas, mus, theta)
 
