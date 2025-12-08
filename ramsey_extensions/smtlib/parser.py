@@ -1,4 +1,3 @@
-import functools
 from pysmt.smtlib.parser import SmtLibParser
 
 def open_(fname):
@@ -58,113 +57,84 @@ class ExtendedSmtLibParser(SmtLibParser):
         self.interpreted["mod"] = self._operator_adapter(self._modulo)
         self.interpreted["to_int"] = self._operator_adapter(self._to_int)
 
-
     def _enter_ramsey(self, stack, tokens, key):
         """
         Parse a (ramsey ...) construct.
-
-        Supported syntaxes:
-        1. Uniformly typed:
-            (ramsey Int (x y) (a b) phi)
-            -> all quantified variables share type Int
-
-        2. Mixed (per-variable types, no explicit 'mixed' keyword):
-            (ramsey ((x Int) (a Real)) ((y Int) (b Real)) phi)
-
-        Parsing stages:
-        1. Detect whether the first token after 'ramsey' is a type or a var-list.
-            - If it's a bare type (e.g., Int), parse as uniform.
-            - If it's a list of typed pairs ((x Int) ...), parse as mixed.
-        2. Parse both variable lists, binding variables in cache.
-        3. Parse the body expression.
-        4. Push a deferred exit-handler (_exit_ramsey) that unbinds and constructs
-            the Ramsey node at the end.
+        Syntax 1 (Uniform): (ramsey Int (x y) (a b) phi)
+        Syntax 2 (Explicit): (ramsey ((x Int) (y Int)) ((a Int) (b Int)) phi)
         """
-
-        is_mixed = False
+        
+        # Detect typing mode
+        tok = tokens.consume()
+        is_explicit = False
         ty = None
 
-        # --- Step 1: detect typing mode ---
-        tok = tokens.consume()
         if tok == '(':
-            next_tok = tokens.peek()
+            # Could be start of explicit vars: ((x Int)...)
+            # Or start of (Int)
+            next_tok = tokens.consume()
             if next_tok == '(':
-                # Starts with ((x Int) ...) → mixed mode
-                is_mixed = True
-                tokens.add_extra_token('(')  # put back for var-list parsing
+                # Pattern is (( ... -> Explicit variable list
+                is_explicit = True
+                tokens.add_extra_token(next_tok) 
+                tokens.add_extra_token(tok)      
             else:
-                # Starts with (Int) → uniform mode
+                # We consumed '(' and 'Sym'. We need to parse the Type.
+                tokens.add_extra_token(next_tok)
+                tokens.add_extra_token(tok)
                 ty = self.parse_type(tokens, "expression")
-                self.consume_closing(tokens, "expression")
         else:
-            # No parentheses → simple type like "Int"
+            # Pattern is Sym ... -> Uniform Type (e.g. Int)
             tokens.add_extra_token(tok)
             ty = self.parse_type(tokens, "expression")
 
-        # --- Step 2: first var-list ---
-        self.consume_opening(tokens, "expression")
-        vrs1 = []
-        while True:
-            name = tokens.consume()
-            if name == ')':
-                break
+        # Helper to parse one list of variables
+        def parse_var_list():
+            vrs = []
+            self.consume_opening(tokens, "expression")
+            while True:
+                name = tokens.consume()
+                if name == ')':
+                    break
+                
+                if is_explicit:
+                    if name != '(':
+                        raise Exception("Expected '(' in explicit var list")
+                    
+                    vname = self.parse_atom(tokens, "expression")
+                    typename = self.parse_type(tokens, "expression")
+                    self.consume_closing(tokens, "expression")
+                    
+                    var = self.env.formula_manager.Symbol(vname, typename)
+                else:
+                    vname = name
+                    var = self.env.formula_manager.Symbol(vname, ty)
 
-            if is_mixed:
-                # Expect tuples like (x Int)
-                tokens.add_extra_token(name)
-                self.consume_opening(tokens, "expression")
-                vname = self.parse_atom(tokens, "expression")
-                typename = self.parse_type(tokens, "expression")
-                self.consume_closing(tokens, "expression")
-                var = self._get_quantified_var(vname, typename)
-            else:
-                var = self._get_quantified_var(name, ty)
-                vname = name
+                self.cache.bind(vname, var)
+                vrs.append((vname, var))
+            return vrs
 
-            self.cache.bind(vname, var)
-            vrs1.append((vname, var))
+        vrs1 = parse_var_list()
+        vrs2 = parse_var_list()
 
-        # --- Step 3: second var-list ---
-        self.consume_opening(tokens, "expression")
-        vrs2 = []
-        while True:
-            name = tokens.consume()
-            if name == ')':
-                break
+        # FIXED: Signature changed from (stack, tokens, key, args) to (*args)
+        def _exit_ramsey(*args):
+            # args contains the parsed children (the body formula)
+            if len(args) != 1:
+                 raise Exception("Ramsey expects exactly one body formula")
+            body = args[0]
+            
+            # Unbind variables
+            for name, _ in vrs1 + vrs2:
+                self.cache.unbind(name)
 
-            if is_mixed:
-                tokens.add_extra_token(name)
-                self.consume_opening(tokens, "expression")
-                vname = self.parse_atom(tokens, "expression")
-                typename = self.parse_type(tokens, "expression")
-                self.consume_closing(tokens, "expression")
-                var = self._get_quantified_var(vname, typename)
-            else:
-                var = self._get_quantified_var(name, ty)
-                vname = name
+            syms1 = [var for _, var in vrs1]
+            syms2 = [var for _, var in vrs2]
 
-            self.cache.bind(vname, var)
-            vrs2.append((vname, var))
+            return self.env.formula_manager.Ramsey(syms1, syms2, body)
 
-        # --- Step 4: parse body formula ---
-        body = self.get_expression(tokens)
-
-        # --- Step 5: push exit-handler ---
-        stack[-1].append(self._exit_ramsey)
-        stack[-1].append(vrs1)
-        stack[-1].append(vrs2)
-        stack[-1].append(body)
-
-    def _exit_ramsey(self, vrs1, vrs2, body):
-        # Unbind the names
-        for name, _ in vrs1 + vrs2:
-            self.cache.unbind(name)
-
-        # Extract Symbol objects from the binding lists
-        syms1 = [var for _, var in vrs1]
-        syms2 = [var for _, var in vrs2]
-
-        return self.env.formula_manager.Ramsey(syms1, syms2, body)
+        # Push the exit callback onto the current stack frame
+        stack[-1].append(_exit_ramsey)
 
     def _modulo(self, left, right):
         return self.env.formula_manager.Mod(left, right)
