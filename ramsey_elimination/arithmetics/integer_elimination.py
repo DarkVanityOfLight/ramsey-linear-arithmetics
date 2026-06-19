@@ -8,7 +8,7 @@ from ramsey_extensions.shortcuts import Mod, Ramsey
 
 from ramsey_elimination.simplifications import arithmetic_solver, make_int_input_format
 from ramsey_elimination.formula_utils import apply_subst, ast_to_terms, collect_atoms, contains_mod, fresh_bool_vector, fresh_int_vector, reconstruct_from_coeff_map, ensure_mod
-from ramsey_elimination.existential_elimination import eliminate_existential_quantifier
+from ramsey_elimination.arithmetics.existential_elimination import eliminate_existential_quantifier
 
 
 FNode = ExtendedFNode

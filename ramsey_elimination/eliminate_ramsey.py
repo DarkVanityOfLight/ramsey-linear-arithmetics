@@ -1,10 +1,10 @@
 from enum import Enum, auto
-from ramsey_elimination.integer_elimination import full_ramsey_elimination_int
-from ramsey_elimination.mixed_elimination import (
+from ramsey_elimination.arithmetics.integer_elimination import full_ramsey_elimination_int
+from ramsey_elimination.arithmetics.mixed_elimination import (
     eliminate_mixed_ramsey_from_separated,
     full_mixed_ramsey_elimination,
 )
-from ramsey_elimination.real_elimination import full_ramsey_elimination_real
+from ramsey_elimination.arithmetics.real_elimination import full_ramsey_elimination_real
 from ramsey_extensions.fnode import ExtendedFNode
 
 

@@ -1,5 +1,5 @@
 from ramsey_elimination.formula_utils import int_vector, real_vector
-from ramsey_elimination.mixed_elimination import eliminate_mixed_ramsey_from_separated, full_mixed_ramsey_elimination
+from ramsey_elimination.arithmetics.mixed_elimination import eliminate_mixed_ramsey_from_separated, full_mixed_ramsey_elimination
 from ramsey_extensions.shortcuts import *
 
 ELIMINATION_FUNC = eliminate_mixed_ramsey_from_separated

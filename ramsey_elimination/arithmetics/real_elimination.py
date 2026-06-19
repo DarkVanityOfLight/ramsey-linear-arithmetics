@@ -3,7 +3,7 @@ from typing import Tuple, cast
 from pysmt.shortcuts import GT, LE, LT, And, Equals, Exists, Implies, Not, Or, Plus, Real
 import pysmt.typing as typ
 
-from ramsey_elimination.existential_elimination import eliminate_existential_quantifier
+from ramsey_elimination.arithmetics.existential_elimination import eliminate_existential_quantifier
 from ramsey_elimination.formula_utils import apply_subst, ast_to_terms, collect_atoms, fresh_bool_vector, fresh_real_vector, reconstruct_from_coeff_map
 from ramsey_elimination.simplifications import arithmetic_solver, make_real_input_format
 from ramsey_extensions.fnode import ExtendedFNode

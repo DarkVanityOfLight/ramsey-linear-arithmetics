@@ -5,9 +5,9 @@ from pysmt.shortcuts import (GE, LE, LT, And, Equals, Exists, FreshSymbol,
 from pysmt.typing import BOOL, INT, REAL, PySMTType, _IntType, _RealType
 import pysmt.operators as operators
 
-from ramsey_elimination.existential_elimination import eliminate_existential_quantifier
-from ramsey_elimination.integer_elimination import full_ramsey_elimination_int
-from ramsey_elimination.real_elimination import full_ramsey_elimination_real
+from ramsey_elimination.arithmetics.existential_elimination import eliminate_existential_quantifier
+from ramsey_elimination.arithmetics.integer_elimination import full_ramsey_elimination_int
+from ramsey_elimination.arithmetics.real_elimination import full_ramsey_elimination_real
 from ramsey_elimination.simplifications import arithmetic_solver, make_real_input_format
 from ramsey_extensions.fnode import ExtendedFNode
 from ramsey_extensions.shortcuts import Ramsey, ToInt

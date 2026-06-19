@@ -8,7 +8,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from benchmarks.benchmark_utils import Timer
 from ramsey_elimination.formula_utils import int_vector, real_vector
-from ramsey_elimination.monadic_decomposition import is_mondec
+from ramsey_elimination.arithmetics.monadic_decomposition import is_mondec
 from ramsey_extensions.shortcuts import *
 from ramsey_extensions.environment import push_ramsey
 

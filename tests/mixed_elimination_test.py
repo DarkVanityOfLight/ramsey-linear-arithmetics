@@ -1,6 +1,6 @@
 
 from ramsey_elimination.formula_utils import map_atoms
-from ramsey_elimination.mixed_elimination import compute_type_separation
+from ramsey_elimination.arithmetics.mixed_elimination import compute_type_separation
 
 from ramsey_elimination.simplifications import make_real_input_format
 from ramsey_extensions.fnode import ExtendedFNode

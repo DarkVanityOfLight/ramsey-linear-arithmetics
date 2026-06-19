@@ -28,9 +28,9 @@ from pysmt.shortcuts import is_sat, get_env
 from ramsey_extensions.environment import push_ramsey
 from ramsey_extensions.fnode import ExtendedFNode
 
-from ramsey_elimination.real_elimination import full_ramsey_elimination_real
-from ramsey_elimination.integer_elimination import full_ramsey_elimination_int
-from ramsey_elimination.alternative_mixed_elimination import full_ramsey_elimination_mixed
+from ramsey_elimination.arithmetics.real_elimination import full_ramsey_elimination_real
+from ramsey_elimination.arithmetics.integer_elimination import full_ramsey_elimination_int
+from ramsey_elimination.arithmetics.alternative_mixed_elimination import full_ramsey_elimination_mixed
 from ramsey_elimination.formula_utils import is_atom
 
 # --- Configuration ---

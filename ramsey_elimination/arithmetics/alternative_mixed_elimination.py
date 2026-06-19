@@ -5,10 +5,10 @@ from typing import Dict, List, Tuple, cast
 from pysmt.exceptions import PysmtTypeError
 from pysmt.shortcuts import And, LE, LT, Equals, Exists, FreshSymbol, Implies, Int, Not, NotEquals, Or, Plus, Real, Symbol, ToReal
 
-from ramsey_elimination.existential_elimination import eliminate_existential_quantifier
+from ramsey_elimination.arithmetics.existential_elimination import eliminate_existential_quantifier
 from ramsey_elimination.formula_utils import ast_to_terms, bool_vector, collect_atoms, fresh_bool_vector, fresh_int_vector, fresh_real_vector, map_atoms, reconstruct_from_coeff_map
-from ramsey_elimination.integer_elimination import eliminate_eq_atom_int, eliminate_inequality_atom_int
-from ramsey_elimination.real_elimination import eliminate_equality_atom_real, eliminate_inequality_atom_real
+from ramsey_elimination.arithmetics.integer_elimination import eliminate_eq_atom_int, eliminate_inequality_atom_int
+from ramsey_elimination.arithmetics.real_elimination import eliminate_equality_atom_real, eliminate_inequality_atom_real
 from ramsey_elimination.simplifications import SumOfTerms, arithmetic_solver, make_mixed_input_format
 from ramsey_extensions.fnode import ExtendedFNode
 import pysmt.typing as typ
