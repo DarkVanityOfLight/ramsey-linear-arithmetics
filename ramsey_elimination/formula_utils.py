@@ -5,7 +5,7 @@ from pysmt.fnode import FNode
 import pysmt.typing as typ
 import pysmt.operators as operators
 from pysmt.operators import EQUALS, NOT, SYMBOL, TOREAL
-from pysmt.shortcuts import Int, Plus, Real, Symbol, Times, ToReal, get_env, FreshSymbol
+from pysmt.shortcuts import Int, Plus, Real, Symbol, Times, ToReal, get_env, FreshSymbol, FunctionType
 
 from ramsey_extensions.fnode import ExtendedFNode
 from ramsey_extensions.formula import ExtendedFormulaManager
@@ -103,6 +103,8 @@ def collect_atoms(formula: ExtendedFNode) -> Tuple[
             ineqs.add(sub)
 
         elif sub.is_not():
+            if sub.arg(0).is_equals(): # Should only happen in the EUF case where we do not replace !=
+                eqs.add(sub)
             # A negated mod-equality counts as a modular equality atom
             if contains_mod(sub):
                 modeqs.add(sub)
@@ -277,3 +279,12 @@ def contains_mod(node: ExtendedFNode) -> bool:
         if contains_mod(arg):
             return True
     return False
+
+# FIXME: Track foralls
+def skolemize(term: ExtendedFNode, vars: Set[ExtendedFNode], T):
+    if term.is_symbol() and term in vars:
+        return FunctionType(T, [])
+
+    args = tuple(skolemize(arg, vars, T) for arg in term.args())
+    return create_node(term.node_type(), args, term._content.payload)
+    

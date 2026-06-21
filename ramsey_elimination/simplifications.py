@@ -74,7 +74,6 @@ def integer_atom_rewrite(node: ExtendedFNode) -> ExtendedFNode:
         return LT(lhs, Plus(rhs, Int(1)))
     return node
 
-
 def identity_atom_rewrite(node: ExtendedFNode) -> ExtendedFNode:
     return node
 
@@ -151,7 +150,7 @@ def make_input_format(
                             n_new = Or(LT(lhs, rhs), GT(lhs, rhs))
                     case op.SYMBOL:
                         n_new = Not(n)
-            return atom_rewrite(n_new)
+            return atom_rewrite(n_new) # FIXME: Have to apply recursively(non issue right now)
 
         # --- Recurse for other composite nodes ---
         if not n.is_ramsey():
@@ -173,9 +172,79 @@ def make_input_format(
 def make_int_input_format(node: ExtendedFNode) -> ExtendedFNode:
     return make_input_format(node, integer_atom_rewrite)
 
-
 def make_real_input_format(node: ExtendedFNode) -> ExtendedFNode:
     return make_input_format(node, identity_atom_rewrite)
 
 def make_mixed_input_format(node: ExtendedFNode) -> ExtendedFNode:
     return make_input_format(node, mixed_atom_rewrite)
+
+
+
+
+def make_euf_input_format(
+    node: ExtendedFNode,
+) -> ExtendedFNode:
+    """
+    Single-pass recursion: push negations and apply atom rewrite.
+    """
+    def rec(n: ExtendedFNode, negated: bool = False) -> ExtendedFNode:
+        t = n.node_type()
+
+        # --- Handle boolean constants directly ---
+        if t == op.BOOL_CONSTANT:
+            return FALSE() if (negated ^ n.is_true()) else TRUE()
+
+        # --- Negation pushdown: flip the flag ---
+        if t == op.NOT:
+            return rec(n.arg(0), not negated)
+
+        # --- Connectives ---
+        if t in (op.AND, op.OR):
+            if negated:
+                # De Morgan
+                ctor = Or if t == op.AND else And
+                return ctor([rec(c, True) for c in n.args()])
+            else:
+                ctor = And if t == op.AND else Or
+                return ctor([rec(c, False) for c in n.args()])
+
+        if t == op.IMPLIES:
+            a, b = n.args()
+            # a => b = ~a or b
+            return rec(Or(Not(a), b), negated)
+
+        if t == op.IFF:
+            a, b = n.args()
+            # a <=> b = (a => b) & (b => a)
+            return rec(And(Or(Not(a), b), Or(Not(b), a)), negated)
+
+        if t == op.FORALL:
+            if negated:
+                return Exists(n.quantifier_vars(), rec(n.arg(0), True))
+            else:
+                return ForAll(n.quantifier_vars(), rec(n.arg(0), False))
+        if t == op.EXISTS:
+            if negated:
+                return ForAll(n.quantifier_vars(), rec(n.arg(0), True))
+            else:
+                return Exists(n.quantifier_vars(), rec(n.arg(0), False))
+
+        # --- Atomic formulas ---
+        if is_atom(n):
+            atom = n
+            return Not(atom) if negated else n
+
+        # --- Recurse for other composite nodes ---
+        if not n.is_ramsey():
+            from logging import warning
+            warning(f"Unknown node type when walking tree: {n}")
+
+        children = tuple(rec(c, False) for c in n.args())
+
+        # If we don't know the operator, we preserve negation at this point
+        if negated:
+            return Not(create_node(t, children, n._content.payload))
+        else:
+            return create_node(t, children, n._content.payload)
+
+    return rec(node)

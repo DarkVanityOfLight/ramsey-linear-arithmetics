@@ -50,10 +50,10 @@ class ExtendedTypeChecker(SimpleTypeChecker):
                 raise PysmtTypeError(
                     f"RAMSEY var types must match pairwise: index {i} has {lt} vs {rt}"
                 )
-            if lt not in (INT, REAL):
-                raise PysmtTypeError(
-                    f"RAMSEY vars must be Int or Real, got {lt} at index {i}"
-                )
+            # if lt not in (INT, REAL):
+            #     raise PysmtTypeError(
+            #         f"RAMSEY vars must be Int or Real, got {lt} at index {i}"
+            #     )
 
         return BOOL
 
