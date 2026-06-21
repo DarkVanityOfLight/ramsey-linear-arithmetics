@@ -5,6 +5,7 @@ from ramsey_elimination.arithmetics.mixed_elimination import (
     full_mixed_ramsey_elimination,
 )
 from ramsey_elimination.arithmetics.real_elimination import full_ramsey_elimination_real
+from ramsey_elimination.euf.euf_elimination import full_ramsey_elimination_euf
 from ramsey_extensions.fnode import ExtendedFNode
 
 
@@ -13,6 +14,7 @@ class _RamseyTypes(Enum):
     INT = auto()
     REAL = auto()
     MIXED = auto()
+    EUF = auto()
 
 
 def eliminate_ramsey(f: ExtendedFNode, is_mixed_separated=False) -> ExtendedFNode:
@@ -45,8 +47,10 @@ def eliminate_ramsey(f: ExtendedFNode, is_mixed_separated=False) -> ExtendedFNod
         typ = _RamseyTypes.REAL
     elif all(v.symbol_type().is_int_type() for v in q1):
         typ = _RamseyTypes.INT
-    else:
+    elif all((v.symbol_type().is_int_type() or v.symbol_type().is_real_type()) for v in q1):
         typ = _RamseyTypes.MIXED
+    else: # Conclude it is EUF
+        typ = _RamseyTypes.EUF
 
     # Dispatch to the corresponding elimination algorithm
     match typ:
@@ -64,3 +68,5 @@ def eliminate_ramsey(f: ExtendedFNode, is_mixed_separated=False) -> ExtendedFNod
             else:
                 # Otherwise, apply the general mixed-domain algorithm
                 return full_mixed_ramsey_elimination(f)
+        case _RamseyTypes.EUF:
+            return full_ramsey_elimination_euf(f)

@@ -2,7 +2,7 @@ import sys, time
 from pathlib import Path
 from ramsey_extensions.environment import push_ramsey
 from ramsey_extensions.shortcuts import *
-from ramsey_elimination.integer_elimination import full_ramsey_elimination_int
+from ramsey_elimination.arithmetics.integer_elimination import full_ramsey_elimination_int
 
 push_ramsey()
 
