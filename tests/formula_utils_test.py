@@ -8,7 +8,8 @@ from ramsey_elimination.formula_utils import (
     collect_atoms,
     reconstruct_from_coeff_map,
     map_atoms,
-    ast_to_terms
+    ast_to_terms,
+    apply_subst,
 )
 from ramsey_extensions.shortcuts import Mod
 
@@ -133,3 +134,24 @@ def test_times_invalid():
     expr = Times([Symbol('x', INT), Symbol('y', INT)])
     with pytest.raises(ValueError):
         ast_to_terms(expr)
+
+
+def test_times_zero_factor_collapses_nonlinear_product():
+    x = Symbol('x', INT)
+    y = Symbol('y', INT)
+    for expr in (
+        Times(x, Int(0), y),
+        Times(Int(0), x, y),
+        Times(x, y, Int(0)),
+    ):
+        terms, const = ast_to_terms(expr)
+        assert terms == {}
+        assert const == 0
+
+
+def test_apply_subst_combines_colliding_targets():
+    x = Symbol('x', INT)
+    y = Symbol('y', INT)
+    z = Symbol('z', INT)
+    assert apply_subst({x: 2, y: 3}, {x: z, y: z}) == {z: 5}
+    assert apply_subst({x: 2, y: -2}, {x: z, y: z}) == {}

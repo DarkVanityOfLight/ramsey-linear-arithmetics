@@ -1,6 +1,9 @@
 
 from ramsey_elimination.formula_utils import map_atoms
-from ramsey_elimination.arithmetics.mixed_elimination import compute_type_separation
+from ramsey_elimination.arithmetics.mixed_elimination import (
+    compute_type_separation,
+    eliminate_mixed_ramsey_from_separated,
+)
 
 from ramsey_elimination.simplifications import make_real_input_format
 from ramsey_extensions.fnode import ExtendedFNode
@@ -75,6 +78,14 @@ def test_conjunct():
     x, y, z = Symbol("x", REAL), Symbol("y", REAL), Symbol("z", REAL)
     f_conj = And(LT(Times(Real(2), x), y), LT(y, Times(Real(3), z)))
     _general_seperation(f_conj)
+
+
+def test_separated_mixed_elimination_without_existential():
+    xi, yi = Symbol("xi", INT), Symbol("yi", INT)
+    xr, yr = Symbol("xr", REAL), Symbol("yr", REAL)
+    formula = Ramsey([xi, xr], [yi, yr], And(LT(xi, yi), LT(xr, yr)))
+    result = eliminate_mixed_ramsey_from_separated(formula)
+    assert not result.is_ramsey()
 
 
 

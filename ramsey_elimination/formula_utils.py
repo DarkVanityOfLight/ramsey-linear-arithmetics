@@ -103,11 +103,11 @@ def collect_atoms(formula: ExtendedFNode) -> Tuple[
             ineqs.add(sub)
 
         elif sub.is_not():
-            if sub.arg(0).is_equals(): # Should only happen in the EUF case where we do not replace !=
-                eqs.add(sub)
             # A negated mod-equality counts as a modular equality atom
             if contains_mod(sub):
                 modeqs.add(sub)
+            elif sub.arg(0).is_equals(): # Should only happen in the EUF case where we do not replace !=
+                eqs.add(sub)
 
         else:
             stack.extend(sub.args())
@@ -242,17 +242,26 @@ def ast_to_terms(node: ExtendedFNode) -> Tuple[Dict[ExtendedFNode, Union[int, fl
                 return terms, Lc - Rc
 
             case operators.TIMES:
-                # Restrict to linear multiplication (constant * variable)
+                # Restrict to linear multiplication. Zero factors collapse the
+                # whole product, even if another factor is symbolic.
+                if any(a.is_constant() and a.constant_value() == 0 for a in n.args()):
+                    return {}, 0
+
                 terms: Dict[ExtendedFNode, Union[int, float]] = {}
                 const: Union[int, float] = 1
                 for a in n.args():
                     tmap, c = process(a)
-                    if tmap and terms:
+                    if (not terms and const == 0) or (not tmap and c == 0):
+                        terms = {}
+                        const = 0
+                    elif tmap and terms:
                         raise ValueError("Cannot multiply two symbolic parts")
-                    terms = {s: co * c for s, co in terms.items()}
-                    for s, co in tmap.items():
-                        terms[s] = terms.get(s, 0) + co * const
-                    const *= c
+                    elif tmap:
+                        terms = {s: co * const for s, co in tmap.items()}
+                        const *= c
+                    else:
+                        terms = {s: co * c for s, co in terms.items()}
+                        const *= c
                 return terms, const
 
             case operators.TOREAL | cops.TOINT_NODE_TYPE:
@@ -269,7 +278,11 @@ def apply_subst(coeffs: Mapping[ExtendedFNode, Union[int, float]], subst: Mappin
     """
     Apply a substitution map to a coefficient map, keeping unmapped keys.
     """
-    return {subst.get(var, var): coeff for var, coeff in coeffs.items()}
+    result: Dict[ExtendedFNode, Union[int, float]] = {}
+    for var, coeff in coeffs.items():
+        target = subst.get(var, var)
+        result[target] = result.get(target, 0) + coeff
+    return {var: coeff for var, coeff in result.items() if coeff != 0}
 
 def contains_mod(node: ExtendedFNode) -> bool:
     """Check if a node contains a modulo operation anywhere in its subtree."""

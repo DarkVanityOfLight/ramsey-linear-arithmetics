@@ -25,7 +25,7 @@ REAL extends SMT-LIB syntax to represent Ramsey quantifiers. Two forms are suppo
 **Example SMT-LIB usage**:
 
 ```smt2
-(assert (ramsey ((Int x_1) (Real x_2)) ((Int y_1) (Real y_2))
+(assert (ramsey ((x_1 Int) (x_2 Real)) ((y_1 Int) (y_2 Real))
         (and (> x_1 0) (< y_1 10) (< x_2 y_1) (< x_1 y_2))))
 (check-sat)
 ```
@@ -63,6 +63,13 @@ Benchmarks can be run on different sets of formulas to evaluate performance:
 python benchmark.py <module>
 ```
 
+The EUF Ramsey workloads are available as `benchmarks.euf_benchmarks` and can
+be run directly through the shared harness:
+
+```bash
+python benchmarks/benchmark_utils.py benchmarks.euf_benchmarks --format table
+```
+
 Use `--help` to see available modules, output formats, and timing options.
 
 ## Architecture
@@ -93,4 +100,3 @@ REAL is organized into three main packages:
 In combinations with [FASTer](https://tapas.labri.fr/wp/?page_id=23) and [Alchemist](https://github.com/DarkVanityOfLight/alchemist), REAL 
 provides an automated pipeline for checking liveness properties of a broad class of integer counter systems,
 the `generated` directory, provides several example files of this.
-
